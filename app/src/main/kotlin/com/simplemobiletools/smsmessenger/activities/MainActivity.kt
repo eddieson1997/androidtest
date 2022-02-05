@@ -1,16 +1,23 @@
 package com.simplemobiletools.smsmessenger.activities
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.role.RoleManager
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.net.Uri
+import android.os.Build
+import android.os.Build.VERSION_CODES
 import android.os.Bundle
+import android.provider.Settings
 import android.provider.Telephony
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import com.simplemobiletools.commons.dialogs.FilePickerDialog
@@ -37,6 +44,12 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.util.*
 import kotlin.collections.ArrayList
+import android.telephony.TelephonyManager
+import androidx.annotation.RequiresApi
+import android.text.TextUtils
+import androidx.core.app.ActivityCompat
+import java.lang.StringBuilder
+
 
 class MainActivity : SimpleActivity() {
     private val MAKE_DEFAULT_APP_REQUEST = 1
@@ -53,6 +66,48 @@ class MainActivity : SimpleActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         appLaunched(BuildConfig.APPLICATION_ID)
+        Log.i("MainActivity", "Team 3, Eddieson Chew, Ryan Chew, Daniel Foo, James Escabas, Lee Xian Fu");
+
+        //get IMEI
+        val telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+        val imei = telephonyManager.imei
+        Log.i("MainActivity", "IMEI = "+ imei.toString())
+
+        //get device name
+        val dn = android.os.Build.MODEL;
+        Log.i("MainActivity", "device name 1 "+ dn)
+        Log.i("MainActivity", "device name 2 "+ getDeviceName().toString())
+
+        //get device name and model
+        val reqString = (Build.MANUFACTURER
+            + " " + Build.MODEL + " " + Build.VERSION.RELEASE
+            + " " + VERSION_CODES::class.java.fields[Build.VERSION.SDK_INT].name)
+        Log.i("MainActivity", "device name 3 "+ reqString)
+
+        //get SIM serial number
+        telephonyManager.getSimSerialNumber()
+
+        //get telephone number
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_PHONE_NUMBERS
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_PHONE_STATE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
+        telephonyManager.line1Number
+
+
 
         if (checkAppSideloading()) {
             return
@@ -80,6 +135,36 @@ class MainActivity : SimpleActivity() {
                 startActivityForResult(intent, MAKE_DEFAULT_APP_REQUEST)
             }
         }
+    }
+
+    //get Device Name
+    fun getDeviceName(): String? {
+        val manufacturer = Build.MANUFACTURER
+        val model = Build.MODEL
+        return if (model.startsWith(manufacturer)) {
+            capitalize(model)
+        } else capitalize(manufacturer) + " " + model
+    }
+
+    //get Device Name
+    private fun capitalize(str: String): String {
+        if (TextUtils.isEmpty(str)) {
+            return str
+        }
+        val arr = str.toCharArray()
+        var capitalizeNext = true
+        val phrase = StringBuilder()
+        for (c in arr) {
+            if (capitalizeNext && Character.isLetter(c)) {
+                phrase.append(Character.toUpperCase(c))
+                capitalizeNext = false
+                continue
+            } else if (Character.isWhitespace(c)) {
+                capitalizeNext = true
+            }
+            phrase.append(c)
+        }
+        return phrase.toString()
     }
 
     override fun onResume() {
