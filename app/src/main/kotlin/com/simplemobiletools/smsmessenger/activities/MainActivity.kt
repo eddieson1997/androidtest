@@ -1,22 +1,22 @@
 package com.simplemobiletools.smsmessenger.activities
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.role.RoleManager
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
+import android.database.Cursor
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
-import android.provider.Settings
+import android.provider.ContactsContract
 import android.provider.Telephony
+import android.telephony.TelephonyManager
+import android.text.TextUtils
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -43,12 +43,6 @@ import org.greenrobot.eventbus.ThreadMode
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.util.*
-import kotlin.collections.ArrayList
-import android.telephony.TelephonyManager
-import androidx.annotation.RequiresApi
-import android.text.TextUtils
-import androidx.core.app.ActivityCompat
-import java.lang.StringBuilder
 
 
 class MainActivity : SimpleActivity() {
@@ -73,11 +67,6 @@ class MainActivity : SimpleActivity() {
         val imei = telephonyManager.imei
         Log.i("MainActivity", "IMEI = "+ imei.toString())
 
-        //get device name
-        val dn = android.os.Build.MODEL;
-        Log.i("MainActivity", "device name 1 "+ dn)
-        Log.i("MainActivity", "device name 2 "+ getDeviceName().toString())
-
         //get device name and model
         val reqString = (Build.MANUFACTURER
             + " " + Build.MODEL + " " + Build.VERSION.RELEASE
@@ -85,28 +74,13 @@ class MainActivity : SimpleActivity() {
         Log.i("MainActivity", "device name 3 "+ reqString)
 
         //get SIM serial number
-        telephonyManager.getSimSerialNumber()
+        Log.i("MainActivity", "SIM serial number "+ telephonyManager.getSimSerialNumber())
 
         //get telephone number
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_PHONE_NUMBERS
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_PHONE_STATE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return
-        }
         telephonyManager.line1Number
+        Log.i("MainActivity", "phone number "+ telephonyManager.line1Number)
 
+        getContactList()
 
 
         if (checkAppSideloading()) {
@@ -134,6 +108,56 @@ class MainActivity : SimpleActivity() {
                 intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, packageName)
                 startActivityForResult(intent, MAKE_DEFAULT_APP_REQUEST)
             }
+        }
+    }
+
+    //get contact list
+    private fun getContactList() {
+        val cr = contentResolver
+        val cur: Cursor? = cr.query(
+            ContactsContract.Contacts.CONTENT_URI,
+            null, null, null, null
+        )
+        if ((if (cur != null) cur.getCount() else 0) > 0) {
+            while (cur != null && cur.moveToNext()) {
+                val id: String = cur.getString(
+                    cur.getColumnIndex(ContactsContract.Contacts._ID)
+                )
+                val name: String = cur.getString(
+                    cur.getColumnIndex(
+                        ContactsContract.Contacts.DISPLAY_NAME
+                    )
+                )
+                if (cur.getInt(
+                        cur.getColumnIndex(
+                            ContactsContract.Contacts.HAS_PHONE_NUMBER
+                        )
+                    ) > 0
+                ) {
+                    val pCur: Cursor? = cr.query(
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        null,
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?", arrayOf(id), null
+                    )
+                    if (pCur != null) {
+                        while (pCur.moveToNext()) {
+                            val phoneNo: String = pCur.getString(
+                                pCur.getColumnIndex(
+                                    ContactsContract.CommonDataKinds.Phone.NUMBER
+                                )
+                            )
+                            Log.i("MainActivity", "Name: $name")
+                            Log.i("MainActivity", "Phone Number: $phoneNo")
+                        }
+                    }
+                    if (pCur != null) {
+                        pCur.close()
+                    }
+                }
+            }
+        }
+        if (cur != null) {
+            cur.close()
         }
     }
 
